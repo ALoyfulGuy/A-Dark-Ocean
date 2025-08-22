@@ -218,6 +218,13 @@
             color: #888;
             border-color: #888;
         }
+        
+        .game-button.stunned-button {
+            background-color: #555 !important;
+            color: #aaa !important;
+            cursor: not-allowed !important;
+        }
+
 
         /* Hover effect for the button */
         .game-button:hover:not(.disabled) {
@@ -653,7 +660,7 @@
         }
         
         #minigame-grid {
-            font-family: 'Courier New', monospace;
+            font-family: 'Courier New', Courier, monospace;
             font-size: 1.2rem;
             line-height: 1.2rem;
             white-space: pre;
@@ -939,7 +946,7 @@
         /* Speedrun Timer Styles */
         .speedrun-timer {
             position: fixed;
-            bottom: 20px;
+            bottom: 50px; /* Raised up */
             left: 20px;
             font-family: 'Courier New', Courier, monospace;
             font-size: 2rem;
@@ -950,6 +957,64 @@
             padding: 0.5rem 1rem;
             z-index: 5;
         }
+        
+        /* Owner Credit Styles */
+        .owner-credit {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        
+        .owner-credit img {
+            height: 24px;
+            width: 24px;
+        }
+        
+        /* Wave Animation */
+        .ocean {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .wave {
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%23000000'/%3E%3C/svg%3E");
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            animation: wave 10s -3s linear infinite;
+            transform: translate3d(0, 0, 0);
+            opacity: 0.1;
+        }
+
+        .wave:nth-of-type(2) {
+            bottom: 0;
+            animation: wave 18s linear reverse infinite;
+            opacity: 0.1;
+        }
+
+        .wave:nth-of-type(3) {
+            bottom: 0;
+            animation: wave 20s -1s linear infinite;
+            opacity: 0.05;
+        }
+
+        @keyframes wave {
+            0% {transform: translateX(0);}
+            50% {transform: translateX(-25%);}
+            100% {transform: translateX(-50%);}
+        }
+
 
     </style>
 </head>
@@ -982,6 +1047,12 @@
                 </div>
                 <!-- Speedrun Timer -->
                  <div id="speedrun-timer" class="speedrun-timer">00:00:00</div>
+                 <!-- Owner Credit -->
+                 <div class="owner-credit">
+                     <span>ALoyfulGuy</span>
+                     <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="GitHub">
+                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Netlify_logo_%282%29.svg/1200px-Netlify_logo_%282%29.svg.png" alt="Netlify">
+                 </div>
             </div>
 
             <!-- Resource Gathering Area Page -->
@@ -1295,6 +1366,15 @@
         </div>
     </div>
     
+    <!-- New modal for reinforced shelter crew members -->
+    <div id="new-people-modal" class="modal">
+        <div class="modal-content">
+            <p>2 people on 1 raft gently collided with your boat, they seem relieved to see human faces.</p>
+            <button id="take-in-people-button" class="modal-button">Take Them In</button>
+        </div>
+    </div>
+
+    
     <!-- New modal for import confirmation -->
     <div id="import-confirm-modal" class="modal">
         <div class="modal-content">
@@ -1312,6 +1392,8 @@
     <button id="save-button" class="music-control-button" style="top: 220px;">Save</button>
     <button id="statistics-button" class="music-control-button" style="top: 270px;">Statistics</button>
     <audio id="background-music" loop src="https://cdn.pixabay.com/download/audio/2022/08/04/audio_2dde649a37.mp3"></audio>
+    <audio id="click-sound" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_c6ccf3233c.mp3"></audio>
+
 
     <!-- Achievement pop-up container -->
     <div id="achievement-container" class="achievement-container"></div>
@@ -1404,6 +1486,13 @@
             <div id="combat-log"></div>
         </div>
     </div>
+    
+    <!-- Wave Animation Container -->
+    <div class="ocean">
+        <div class="wave"></div>
+        <div class="wave"></div>
+        <div class="wave"></div>
+    </div>
 
 
     <script>
@@ -1461,6 +1550,8 @@
         const bandageCountSpan = document.getElementById('bandage-count');
         const newPersonModal = document.getElementById('new-person-modal');
         const takeInPersonButton = document.getElementById('take-in-person-button');
+        const newPeopleModal = document.getElementById('new-people-modal');
+        const takeInPeopleButton = document.getElementById('take-in-people-button');
         const totalWorkersCountSpan = document.getElementById('total-workers-count');
         const woodGatherersCountSpan = document.getElementById('wood-gatherers-count');
         const swimmersCountSpan = document.getElementById('swimmers-count');
@@ -1480,6 +1571,7 @@
         // Music control elements
         const musicControlBtn = document.getElementById('music-control');
         const backgroundMusic = document.getElementById('background-music');
+        const clickSound = document.getElementById('click-sound');
         
         // New elements for the loading screen
         const swimLoadingScreen = document.getElementById('swim-loading-screen');
@@ -1632,6 +1724,8 @@
         let swimmers = 0;
         const shelterCosts = [10, 20, 30, 40, 50];
         let sheltersBuilt = 0;
+        let reinforcedSheltersBuilt = 0;
+        const MAX_REINFORCED_SHELTERS = 5;
         
         // New state for diving
         let hasDivingGear = false;
@@ -1950,6 +2044,14 @@
             updateShelterRecipe();
         }
         
+        function recruitNewPeople() {
+            newPeopleModal.style.display = 'none';
+            totalWorkers += 2;
+            idleWorkers += 2;
+            updateWorkerStats();
+            updateReinforcedShelterRecipe();
+        }
+        
         // Function to handle shelter crafting
         function craftShelter() {
             if (sheltersBuilt >= shelterCosts.length) {
@@ -1981,6 +2083,42 @@
             }
         }
         
+        function craftReinforcedShelter() {
+            if (reinforcedSheltersBuilt >= MAX_REINFORCED_SHELTERS) {
+                addNarrativeLine("You have built the maximum number of reinforced shelters.");
+                return;
+            }
+            // Check if the last reinforced shelter is occupied
+            if (reinforcedSheltersBuilt > 0 && (totalWorkers - 5) / 2 < reinforcedSheltersBuilt) {
+                addNarrativeLine("You must wait for new people to occupy your last reinforced shelter before building another.");
+                return;
+            }
+
+            const woodCost = 25 + (reinforcedSheltersBuilt * 25);
+            const reinforcedWoodCost = 2;
+
+            if (isFreeCrafting || (woodCount >= woodCost && reinforcedWoodCount >= reinforcedWoodCost)) {
+                if (!isFreeCrafting) {
+                    woodCount -= woodCost;
+                    reinforcedWoodCount -= reinforcedWoodCost;
+                    updateAllResourceCounts();
+                }
+                reinforcedSheltersBuilt++;
+                addNarrativeLine(`You've built reinforced shelter #${reinforcedSheltersBuilt}!`);
+                
+                const randomDelay = Math.random() * 5000 + 5000; // 5-10 seconds
+                setTimeout(() => {
+                    showModal(() => newPeopleModal.style.display = 'flex');
+                }, randomDelay);
+                
+                updateReinforcedShelterRecipe();
+
+            } else {
+                addNarrativeLine(`You need ${woodCost} Wood and ${reinforcedWoodCost} Reinforced Wood.`);
+            }
+        }
+
+        
         // Function to dynamically add or update a crafting recipe
         function addCraftingRecipe(name, cost, buttonId, recipeId, clickHandler, containerId = 'crafting-recipes-container', description = null) {
             const container = document.getElementById(containerId);
@@ -2008,6 +2146,7 @@
 
             if (sheltersBuilt >= shelterCosts.length) {
                 if (recipe) recipe.style.display = 'none';
+                updateReinforcedShelterRecipe(); // Show reinforced shelter recipe when max normal shelters are built
                 return;
             }
             
@@ -2028,6 +2167,35 @@
                 newButton.addEventListener('click', craftShelter);
             }
         }
+        
+        function updateReinforcedShelterRecipe() {
+            const recipeId = 'craft-reinforced-shelter-recipe';
+            let recipe = document.getElementById(recipeId);
+
+            if (reinforcedSheltersBuilt >= MAX_REINFORCED_SHELTERS) {
+                if (recipe) recipe.style.display = 'none';
+                return;
+            }
+            
+            const woodCost = 25 + (reinforcedSheltersBuilt * 25);
+            const reinforcedWoodCost = 2;
+            const name = `Reinforced Shelter #${reinforcedSheltersBuilt + 1}`;
+            const buttonId = `craft-reinforced-shelter-${reinforcedSheltersBuilt}`;
+
+            if (!recipe) {
+                addCraftingRecipe(name, `${woodCost} Wood, ${reinforcedWoodCost} Reinforced Wood`, buttonId, recipeId, craftReinforcedShelter);
+            } else {
+                recipe.style.display = 'block';
+                recipe.querySelector('p:first-of-type').textContent = name;
+                recipe.querySelector('p:nth-of-type(2)').textContent = `Requires: ${woodCost} Wood, ${reinforcedWoodCost} Reinforced Wood`;
+                const oldButton = recipe.querySelector('button');
+                oldButton.id = buttonId;
+                const newButton = oldButton.cloneNode(true);
+                oldButton.parentNode.replaceChild(newButton, oldButton);
+                newButton.addEventListener('click', craftReinforcedShelter);
+            }
+        }
+
 
         // The main function to handle game progression
         function progressGame() {
@@ -2170,12 +2338,14 @@
             allScreens.forEach(s => s.style.display = 'none');
             allTabs.forEach(t => t.classList.remove('active'));
             speedrunTimer.style.display = 'none';
+            document.querySelector('.owner-credit').style.display = 'none';
 
             if (screen === 'game') {
                 gameScreen.style.display = 'flex';
                 gameTab.classList.add('active');
                 inventoryPanel.style.display = 'flex';
-                 speedrunTimer.style.display = 'block';
+                speedrunTimer.style.display = 'block';
+                document.querySelector('.owner-credit').style.display = 'flex';
             } else if (screen === 'resource') {
                 resourceGatheringScreen.style.display = 'flex';
                 resourceTab.classList.add('active');
@@ -2362,6 +2532,11 @@
                 addNarrativeLine("You are busy building a shelter and cannot swim right now.");
                 return;
             }
+            // Swim lock for reinforced shelters
+            if (sheltersBuilt === 5 && reinforcedSheltersBuilt > 0 && (totalWorkers - 5) / 2 < reinforcedSheltersBuilt) {
+                 addNarrativeLine("You are busy building a reinforced shelter and cannot swim right now.");
+                return;
+            }
             if (swimButton.classList.contains('disabled')) return;
 
             isPlayerSwimming = true;
@@ -2518,10 +2693,10 @@
             hatchetfish: { name: 'Hatchetfish', health: 5, minDmg: 2, maxDmg: 3, cooldown: 1500, attackName: 'Chomp' },
             stargazer: { name: 'Stargazer', health: 8, minDmg: 3, maxDmg: 3, cooldown: 2300, attackName: 'Charged Bite' },
             catshark: { name: 'Deep-Sea Catshark', health: 15, minDmg: 1, maxDmg: 1, cooldown: 1500, attackName: 'Bite' },
-            spider: { name: 'Colossal Sea Spider', health: 15, minDmg: 2, maxDmg: 3, cooldown: 2000, attackName: 'Stab', special: 'whip' },
+            spider: { name: 'Colossal Sea Spider', health: 15, minDmg: 2, maxDmg: 3, cooldown: 1000, attackName: 'Stab', special: 'whip' },
             viperfish: { name: 'Viperfish', health: 20, minDmg: 1, maxDmg: 1, cooldown: 1000, attackName: 'Snag' },
             gulpereel: { name: 'Gulper Eel', health: 20, minDmg: 2, maxDmg: 3, cooldown: 2000, attackName: 'Bite' },
-            whalefish: { name: 'Whalefish', health: 30, minDmg: 1, maxDmg: 1, cooldown: 2000, attackName: 'Ram', special: 'headbutt' }
+            whalefish: { name: 'Whalefish', health: 30, minDmg: 1, maxDmg: 1, cooldown: 500, attackName: 'Ram', special: 'headbutt' }
         };
         
         const landmarks = {
@@ -2626,6 +2801,10 @@
 
 
         function craftSpear() {
+            if (hasSpear) {
+                addNarrativeLine("You already have a spear.");
+                return;
+            }
             if (isFreeCrafting || (woodCount >= 2 && stoneCount >= 1 && metallicScrapCount >= 1 && ropeCount >= 1)) {
                 if (!isFreeCrafting) {
                     woodCount -= 2; stoneCount -= 1; metallicScrapCount -= 1; ropeCount -= 1;
@@ -2886,6 +3065,11 @@
                 }
             } else {
                 addNarrativeLine("You passed out... You were lucky to float back, but lost everything from the dive.");
+                if (hasSpear) {
+                    hasSpear = false;
+                    spearItem.style.display = 'none';
+                    addNarrativeLine("Your spear was lost in the depths.");
+                }
                  if (!hasFoundRepairShip) { // Still unlock recipes on first dive failure
                     showRepairShipRecipes();
                 }
@@ -3058,7 +3242,13 @@
         
         function playerAttack(type) {
             if (!isPlayerInCombat || isPlayerStunned) return;
-            let damage = 0, cooldown = 900, attackName = '';
+            
+            if (Math.random() < 0.10) { // 10% miss chance
+                addCombatLog("Your attack missed!");
+                return;
+            }
+
+            let damage = 0, cooldown = 850, attackName = '';
             if (type === 'fist' && !fistAttackButton.classList.contains('disabled') && !isFistDisabled) {
                 damage = Math.floor(Math.random() * 2) + 1;
                 attackName = 'punched';
@@ -3097,8 +3287,17 @@
             if (currentEnemy.special === 'whip' && combatTurnCounter > 1) {
                 currentEnemy.special = null;
                 isPlayerStunned = true;
+                fistAttackButton.classList.add('stunned-button');
+                spearAttackButton.classList.add('stunned-button');
                 addCombatLog(`The ${currentEnemy.name} whips its leg, stunning you!`);
-                setTimeout(() => { if(!isGamePaused) { isPlayerStunned = false; addCombatLog("You are no longer stunned."); } }, 3000);
+                setTimeout(() => { 
+                    if(!isGamePaused) { 
+                        isPlayerStunned = false; 
+                        fistAttackButton.classList.remove('stunned-button');
+                        spearAttackButton.classList.remove('stunned-button');
+                        addCombatLog("You are no longer stunned."); 
+                    } 
+                }, 3000);
                 return;
             }
             if (currentEnemy.special === 'headbutt' && combatTurnCounter % 5 === 0) {
@@ -3251,7 +3450,7 @@
                 purity: { tungsten: tungstenCount, kevlar: kevlarCount, rStone: reinforcedStoneCount, rWood: reinforcedWoodCount },
                 flags: { search: searchCount, isFree, axeheadFound, hasWoodpile: hasUnlitWoodpile, hasLiquid: hasFlammableLiquid, hasMatch, isSection2, isSection3, fireHint: hasShownFireHint, foundRepairShip: hasFoundRepairShip },
                 crafted: { gear: hasDivingGear, spear: hasSpear, tank: hasBetterAirTank, gun: hasHarpoonGun, net: hasFishingNet, diveBag: hasDiveBag, furnace: hasFurnace },
-                workers: { total: totalWorkers, idle: idleWorkers, wood: woodGatherers, swim: swimmers, shelters: sheltersBuilt },
+                workers: { total: totalWorkers, idle: idleWorkers, wood: woodGatherers, swim: swimmers, shelters: sheltersBuilt, rShelters: reinforcedSheltersBuilt },
                 achievements: Array.from(unlockedAchievements),
                 admin: { mode: isAdminMode, free: isFreeCrafting, fast: isCooldownHacked, infMoves: hasInfiniteMoves, godHealth: hasGodHealth, noEnemies: noEnemies, unlocked: Array.from(unlockedAdminCommands) },
                 paths: safePaths,
@@ -3277,7 +3476,7 @@
                 tungstenCount = savedState.purity.tungsten || 0; kevlarCount = savedState.purity.kevlar || 0; reinforcedStoneCount = savedState.purity.rStone || 0; reinforcedWoodCount = savedState.purity.rWood || 0;
                 searchCount = savedState.flags.search || 0; isFree = savedState.flags.isFree || false; axeheadFound = savedState.flags.axeheadFound || false; hasUnlitWoodpile = savedState.flags.hasWoodpile || false; hasFlammableLiquid = savedState.flags.hasLiquid || false; hasMatch = savedState.flags.hasMatch || false; isSection2 = savedState.flags.isSection2 || false; isSection3 = savedState.flags.isSection3 || false; hasShownFireHint = savedState.flags.fireHint || false; hasFoundRepairShip = savedState.flags.foundRepairShip || false;
                 hasDivingGear = savedState.crafted.gear || false; hasSpear = savedState.crafted.spear || false; hasBetterAirTank = savedState.crafted.tank || false; hasHarpoonGun = savedState.crafted.gun || false; hasFishingNet = savedState.crafted.net || false; hasDiveBag = savedState.crafted.diveBag || false; hasFurnace = savedState.crafted.furnace || false;
-                totalWorkers = savedState.workers.total || 0; woodGatherers = savedState.workers.wood || 0; swimmers = savedState.workers.swim || 0; sheltersBuilt = savedState.workers.shelters || 0;
+                totalWorkers = savedState.workers.total || 0; woodGatherers = savedState.workers.wood || 0; swimmers = savedState.workers.swim || 0; sheltersBuilt = savedState.workers.shelters || 0; reinforcedSheltersBuilt = savedState.workers.rShelters || 0;
                 unlockedAchievements = new Set(savedState.achievements || []);
                 if (savedState.admin) {
                     isAdminMode = savedState.admin.mode || false; isFreeCrafting = savedState.admin.free || false; isCooldownHacked = savedState.admin.fast || false; hasInfiniteMoves = savedState.admin.infMoves || false; hasGodHealth = savedState.admin.godHealth || false; noEnemies = savedState.admin.noEnemies || false;
@@ -3449,6 +3648,11 @@
                  addCraftingRecipe('Underwater Habitat', '3 Tungsten, 45 Metallic Scrap, 100 Screws', 'craft-habitat', 'habitat-recipe', craftUnderwaterHabitat, 'crafting-recipes-container', 'A small, safe outpost for deep-sea exploration.');
             }
         }
+        
+        function playClickSound() {
+            clickSound.currentTime = 0;
+            clickSound.play();
+        }
 
 
         // --- Main Game Event Listeners ---
@@ -3458,6 +3662,7 @@
         craftWoodpileButton.addEventListener('click', craftWoodpile);
         gatherWoodButton.addEventListener('click', gatherWood);
         takeInPersonButton.addEventListener('click', recruitNewPerson);
+        takeInPeopleButton.addEventListener('click', recruitNewPeople);
         assignWoodGathererButton.addEventListener('click', () => assignWorker('wood'));
         assignSwimmerButton.addEventListener('click', () => assignWorker('swim'));
         recallWoodGathererButton.addEventListener('click', () => recallWorker('wood'));
@@ -3505,6 +3710,11 @@
             afkModal.style.display = 'none';
             resetAfkTimer();
             processPopupQueue();
+        });
+        
+        // Add click sound to all buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', playClickSound);
         });
 
         window.addEventListener('mousemove', resetAfkTimer);
