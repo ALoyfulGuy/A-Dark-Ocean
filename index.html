@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Cold Room</title>
+    <title>A Dark Ocean</title>
     <style>
         /* Define a consistent, monochromatic color palette */
         :root {
@@ -649,6 +649,7 @@
             gap: 1rem;
             width: 100%;
             height: 100%;
+            overflow: hidden; /* Prevent internal scrollbars */
         }
         
         #minigame-grid {
@@ -658,17 +659,20 @@
             white-space: pre;
             border: 2px solid var(--color-border);
             padding: 1rem;
-            width: 80vw;
-            height: 60vh;
-            max-width: 1200px;
+            width: 100%; /* Fill parent */
+            height: 100%; /* Fill parent */
+            flex-grow: 1; /* Take up available vertical space */
             overflow: auto;
             position: relative;
+            box-sizing: border-box;
         }
         
         .player { color: blue; font-weight: bold; }
         .boat { color: green; font-weight: bold; }
         .landmark { color: red; font-weight: bold; cursor: help; position: relative; }
         .safe-path { color: #aaa; } /* New style for safe paths */
+        .habitat { color: purple; font-weight: bold; } /* New style for habitats */
+
 
         /* Tooltip for landmarks */
         .landmark .tooltip-text {
@@ -726,7 +730,7 @@
         }
 
         .toggle-switch {
-            display: flex;
+            display: none; /* Hidden by default */
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
@@ -932,6 +936,21 @@
             margin-bottom: 1rem;
         }
 
+        /* Speedrun Timer Styles */
+        .speedrun-timer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--color-fg);
+            background-color: var(--color-bg);
+            border: 2px solid var(--color-border);
+            padding: 0.5rem 1rem;
+            z-index: 5;
+        }
+
     </style>
 </head>
 <body>
@@ -961,6 +980,8 @@
                         <div id="cooldown-bar" class="cooldown-bar" style="width: 0;"></div>
                     </button>
                 </div>
+                <!-- Speedrun Timer -->
+                 <div id="speedrun-timer" class="speedrun-timer">00:00:00</div>
             </div>
 
             <!-- Resource Gathering Area Page -->
@@ -1001,6 +1022,7 @@
                                 </div>
                             </div>
                             <button id="use-bandage-button" class="game-button">Use Bandage (<span id="dive-bandage-count">0</span>)</button>
+                             <button id="build-habitat-button" class="game-button" style="display: none;">Build Habitat</button>
                         </div>
                         <div id="dive-inventory-display">
                             <!-- Dive inventory slots will be shown here -->
@@ -1081,7 +1103,7 @@
                     <div class="connector-line"></div>
                     <div id="section-2" class="progression-section locked">Section 2: Beginning to Begin</div>
                     <div class="connector-line"></div>
-                    <div id="section-3" class="progression-section locked">Section 3: The Depths</div>
+                    <div id="section-3" class="progression-section locked">Section 3: Deep-Sea Dweller</div>
                     <div class="connector-line"></div>
                     <div id="section-4" class="progression-section locked">Section 4: The Beacon</div>
                     <div class="connector-line"></div>
@@ -1097,24 +1119,24 @@
                 <input type="text" id="admin-code-input" class="admin-input" placeholder="Code...">
                 <button id="admin-submit-button" class="game-button">Submit</button>
                 <p id="admin-status"></p>
-                <div id="admin-controls-area" style="display: none;">
-                    <div class="toggle-switch">
+                <div id="admin-controls-area">
+                    <div class="toggle-switch" id="free-crafting-toggle-container">
                         <span>Free Crafting</span>
                         <input type="checkbox" id="free-crafting-toggle" /><label for="free-crafting-toggle">Toggle</label>
                     </div>
-                    <div class="toggle-switch">
+                    <div class="toggle-switch" id="fast-cooldowns-toggle-container">
                         <span>Fast Cooldowns</span>
                         <input type="checkbox" id="fast-cooldowns-toggle" /><label for="fast-cooldowns-toggle">Toggle</label>
                     </div>
-                    <div class="toggle-switch">
+                    <div class="toggle-switch" id="infinite-moves-toggle-container">
                         <span>Infinite Dive Moves</span>
                         <input type="checkbox" id="infinite-moves-toggle" /><label for="infinite-moves-toggle">Toggle</label>
                     </div>
-                    <div class="toggle-switch">
+                    <div class="toggle-switch" id="god-health-toggle-container">
                         <span>500 Dive Health</span>
                         <input type="checkbox" id="god-health-toggle" /><label for="god-health-toggle">Toggle</label>
                     </div>
-                    <div class="toggle-switch">
+                    <div class="toggle-switch" id="no-enemies-toggle-container">
                         <span>No Enemies</span>
                         <input type="checkbox" id="no-enemies-toggle" /><label for="no-enemies-toggle">Toggle</label>
                     </div>
@@ -1163,6 +1185,10 @@
                         <span>Wood: </span>
                         <span id="wood-count">0</span>
                     </div>
+                     <div id="screws-item" class="inventory-item" style="display: none;">
+                        <span>Screws: </span>
+                        <span id="screws-count">0</span>
+                    </div>
                     <div id="unlit-woodpile-item" class="inventory-item clickable" style="display: none;">
                         <span>Unlit Woodpile</span>
                     </div>
@@ -1192,6 +1218,12 @@
                     <!-- Crafted items -->
                     <div id="diving-gear-item" class="inventory-item" style="display: none;">
                         <span>Simple Diving Gear</span>
+                    </div>
+                     <div id="dive-bag-item" class="inventory-item" style="display: none;">
+                        <span>Dive Bag</span>
+                    </div>
+                     <div id="furnace-item" class="inventory-item" style="display: none;">
+                        <span>Furnace</span>
                     </div>
                     <div id="spear-item" class="inventory-item" style="display: none;">
                         <span>Spear</span>
@@ -1443,6 +1475,7 @@
         const progressionScreen = document.getElementById('progression-screen');
         const progressionBackButton = document.getElementById('progression-back-button');
         const section2 = document.getElementById('section-2');
+        const section3 = document.getElementById('section-3');
         
         // Music control elements
         const musicControlBtn = document.getElementById('music-control');
@@ -1471,6 +1504,7 @@
         const diveHealthText = document.getElementById('dive-health-text');
         const divePlayerHealthBar = document.getElementById('dive-player-health-bar');
         const useBandageButton = document.getElementById('use-bandage-button');
+        const buildHabitatButton = document.getElementById('build-habitat-button');
         const diveBandageCountSpan = document.getElementById('dive-bandage-count');
         const divingGearItem = document.getElementById('diving-gear-item');
         const spearItem = document.getElementById('spear-item');
@@ -1482,6 +1516,11 @@
         const harpoonAmmoCountSpan = document.getElementById('harpoon-ammo-count');
         const fishingNetItem = document.getElementById('fishing-net-item');
         const diveInventoryDisplay = document.getElementById('dive-inventory-display');
+        const diveBagItem = document.getElementById('dive-bag-item');
+        const furnaceItem = document.getElementById('furnace-item');
+        const screwsItem = document.getElementById('screws-item');
+        const screwsCountSpan = document.getElementById('screws-count');
+
         
         // New elements for commands
         const commandsButton = document.getElementById('commands-button');
@@ -1550,6 +1589,10 @@
         const statisticsScreen = document.getElementById('statistics-screen');
         const statsContainer = document.getElementById('stats-container');
         const statisticsBackButton = document.getElementById('statistics-back-button');
+        
+        // Timer elements
+        const speedrunTimer = document.getElementById('speedrun-timer');
+
 
         
         // State variables to track game progress
@@ -1561,6 +1604,7 @@
         let ropeCount = 0;
         let metallicScrapCount = 0;
         let bandageCount = 0;
+        let screwsCount = 0;
         let axeheadFound = false;
         let hasUnlitWoodpile = false;
         let hasFlammableLiquid = false;
@@ -1571,6 +1615,7 @@
         
         // New state for story progression and events
         let isSection2 = false;
+        let isSection3 = false;
         let isPlayerSwimming = false;
         let isPlayerDiving = false;
         let soloEventTimer = null;
@@ -1578,6 +1623,7 @@
         let eventQueue = [];
         let popupQueue = [];
         let hasShownFireHint = false;
+        let hasFoundRepairShip = false;
         
         // New state for workers and shelters
         let totalWorkers = 0;
@@ -1591,13 +1637,18 @@
         let hasDivingGear = false;
         let hasSpear = false;
         let hasBetterAirTank = false;
+        let hasDiveBag = false;
+        let hasFurnace = false;
+        let habitatsBuilt = 0;
+        const MAX_HABITATS = 5;
+        let placedHabitats = []; // [{x, y, usedThisDive}]
         let pearlCount = 0;
         let hasHarpoonGun = false;
         let harpoonAmmoCount = 0;
         let hasFishingNet = false;
         let diveMoves = 20;
         let diveInventory = []; // Array of up to 4 objects: { item, quantity }
-        const DIVE_INV_SLOTS = 4;
+        let DIVE_INV_SLOTS = 4;
         const DIVE_STACK_LIMIT = 5;
         let diveTools = [];
         let diveBandages = 0;
@@ -1606,6 +1657,7 @@
         let playerPath = []; // To track path for safe routes
         let safePaths = []; // To store successful paths
         const MAP_SIZE = 51; // Increased map size
+        let rareEnemyPathwayChance = 0.05; // Base 5% chance, increases
         
         // New state for combat
         const DEFAULT_MAX_PLAYER_HEALTH = 15;
@@ -1629,6 +1681,7 @@
         let hasInfiniteMoves = false;
         let hasGodHealth = false;
         let noEnemies = false;
+        let unlockedAdminCommands = new Set();
         
         // New state for purity materials
         let tungstenCount = 0;
@@ -1669,6 +1722,11 @@
             totalDives: 0,
             enemiesSlain: {}
         };
+        
+        // Timer state
+        let gameTime = 0;
+        let timerInterval = null;
+
 
         // Narrative text logs
         const narrativeLogTied = [
@@ -1722,6 +1780,7 @@
             first_member: { title: "A Helping Hand", description: "You welcomed another person to your boat.", rarity: "Common" },
             helpful_hands: { title: "Helpful Hands", description: "You received materials from one of your workers.", rarity: "Common" },
             deep_diver: { title: "Deep Diver", description: "You crafted diving gear to explore the depths.", rarity: "Rare" },
+            deep_sea_dweller: { title: "Deep-Sea Dweller", description: "You placed your first underwater habitat.", rarity: "Rare" },
             god_mode: { title: "You Little Sh*t", description: "You have enabled free crafting.", rarity: "Secret" },
             afk_lol: { title: "You didn’t think that actually worked…", description: "You triggered the AFK timer.", rarity: "Secret" }
         };
@@ -2110,11 +2169,13 @@
 
             allScreens.forEach(s => s.style.display = 'none');
             allTabs.forEach(t => t.classList.remove('active'));
+            speedrunTimer.style.display = 'none';
 
             if (screen === 'game') {
                 gameScreen.style.display = 'flex';
                 gameTab.classList.add('active');
                 inventoryPanel.style.display = 'flex';
+                 speedrunTimer.style.display = 'block';
             } else if (screen === 'resource') {
                 resourceGatheringScreen.style.display = 'flex';
                 resourceTab.classList.add('active');
@@ -2130,6 +2191,8 @@
                 progressionScreen.style.display = 'flex';
                 if (isSection2) section2.classList.remove('locked');
                 else section2.classList.add('locked');
+                 if (isSection3) section3.classList.remove('locked');
+                else section3.classList.add('locked');
             } else if (screen === 'workers') {
                 workersScreen.style.display = 'flex';
                 workersTab.classList.add('active');
@@ -2358,6 +2421,7 @@
                         craftingIndicator.style.display = 'block';
                         updateShelterRecipe();
                         addCraftingRecipe(`Simple Diving Gear`, `5 Fabric, 2 Stone, 1 Metallic, 1 Rope`, `craft-diving-gear`, `diving-gear-recipe`, craftDivingGear);
+                         addCraftingRecipe('Dive Bag', '10 Fabric, 5 Rope', 'craft-dive-bag', 'dive-bag-recipe', craftDiveBag, 'crafting-recipes-container', 'Increases dive inventory by 4 slots.');
                     }
 
                     startCooldown(swimButton, swimCooldownBar, swimCooldownDuration);
@@ -2439,6 +2503,7 @@
                 case 'Harpoon Gun': hasHarpoonGun = true; break;
                 case 'Harpoon Ammo': harpoonAmmoCount += quantity; break;
                 case 'Bandage': bandageCount += quantity; break;
+                case 'Screws': screwsCount += quantity; break;
                 case 'Tungsten': tungstenCount += quantity; break;
                 case 'Kevlar': kevlarCount += quantity; break;
                 case 'Reinforced Stone': reinforcedStoneCount += quantity; break;
@@ -2467,7 +2532,8 @@
             ],
             rare: [
                 { name: 'Sunken Battleship', lootTable: ['Metallic Scrap', 'Harpoon Ammo', 'Pearl'] },
-                { name: 'Sunken Yacht', lootTable: ['Fabric', 'Rope', 'Pearl', 'Harpoon Gun'] }
+                { name: 'Sunken Yacht', lootTable: ['Fabric', 'Rope', 'Pearl', 'Harpoon Gun'] },
+                { name: 'Sunken Repair Ship', lootTable: ['Metallic Scrap', 'Screws'] }
             ]
         };
 
@@ -2492,6 +2558,72 @@
                 addNarrativeLine("You don't have enough materials.");
             }
         }
+        
+        function craftDiveBag() {
+            if (isFreeCrafting || (fabricCount >= 10 && ropeCount >= 5)) {
+                if (!isFreeCrafting) {
+                    fabricCount -= 10; ropeCount -= 5;
+                    updateAllResourceCounts();
+                }
+                hasDiveBag = true;
+                diveBagItem.style.display = 'flex';
+                DIVE_INV_SLOTS = 8;
+                document.getElementById('dive-bag-recipe').style.display = 'none';
+                addNarrativeLine("You've crafted a Dive Bag, increasing your dive inventory space.");
+            } else {
+                addNarrativeLine("You don't have enough materials.");
+            }
+        }
+        
+        function craftFurnace() {
+            if (isFreeCrafting || (metallicScrapCount >= 10 && tungstenCount >= 2 && woodCount >= 50)) {
+                if (!isFreeCrafting) {
+                    metallicScrapCount -= 10; tungstenCount -= 2; woodCount -= 50;
+                    updateAllResourceCounts();
+                }
+                hasFurnace = true;
+                furnaceItem.style.display = 'flex';
+                document.getElementById('furnace-recipe').style.display = 'none';
+                addNarrativeLine("You've crafted a Furnace. You can now craft screws.");
+                addCraftingRecipe('Screws', '1 Metallic Scrap, 1 Stone', 'craft-screws', 'screws-recipe', craftScrews, 'crafting-recipes-container', 'Essential for advanced construction.');
+            } else {
+                addNarrativeLine("You don't have enough materials.");
+            }
+        }
+        
+        function craftScrews() {
+            if (isFreeCrafting || (metallicScrapCount >= 1 && stoneCount >= 1)) {
+                if (!isFreeCrafting) {
+                    metallicScrapCount -= 1; stoneCount -= 1;
+                    updateAllResourceCounts();
+                }
+                addItemToInventory('Screws', 1);
+                addNarrativeLine("You crafted a screw.");
+            } else {
+                addNarrativeLine("You don't have enough materials.");
+            }
+        }
+        
+        function craftUnderwaterHabitat() {
+            if (habitatsBuilt >= MAX_HABITATS) {
+                addNarrativeLine("You have built the maximum number of habitats.");
+                return;
+            }
+            if (isFreeCrafting || (tungstenCount >= 3 && metallicScrapCount >= 45 && screwsCount >= 100)) {
+                if (!isFreeCrafting) {
+                    tungstenCount -= 3; metallicScrapCount -= 45; screwsCount -= 100;
+                    updateAllResourceCounts();
+                }
+                habitatsBuilt++;
+                addNarrativeLine(`You've constructed an Underwater Habitat module (${habitatsBuilt}/${MAX_HABITATS}).`);
+                if (habitatsBuilt >= MAX_HABITATS) {
+                    document.getElementById('habitat-recipe').style.display = 'none';
+                }
+            } else {
+                addNarrativeLine("You don't have enough materials.");
+            }
+        }
+
 
         function craftSpear() {
             if (isFreeCrafting || (woodCount >= 2 && stoneCount >= 1 && metallicScrapCount >= 1 && ropeCount >= 1)) {
@@ -2600,8 +2732,10 @@
             for (let y = 0; y < MAP_SIZE; y++) {
                 for (let x = 0; x < MAP_SIZE; x++) {
                     const isSafe = safePaths.some(p => p.x === x && p.y === y);
+                    const isHabitat = placedHabitats.some(h => h.x === x && h.y === y);
                     const tile = minigameMap[y][x];
                     if (x === playerPosition.x && y === playerPosition.y) gridHTML += '<span class="player">@</span>';
+                    else if (isHabitat) gridHTML += '<span class="habitat">H</span>';
                     else if (tile.type === 'boat') gridHTML += '<span class="boat">$</span>';
                     else if (tile.type === 'landmark') gridHTML += `<span class="landmark" data-name="${tile.details.name}">#<span class="tooltip-text">${tile.details.name}</span></span>`;
                     else if (isSafe) gridHTML += '<span class="safe-path">.</span>';
@@ -2614,6 +2748,7 @@
             updateHealthBars();
             diveBandageCountSpan.textContent = diveBandages;
             useBandageButton.style.display = diveBandages > 0 ? 'inline-block' : 'none';
+            buildHabitatButton.style.display = habitatsBuilt > placedHabitats.length ? 'inline-block' : 'none';
             updateDiveInventoryDisplay();
         }
 
@@ -2623,11 +2758,15 @@
                 return;
             }
             if (beginDiveButton.classList.contains('disabled')) return;
-
+            
+            rareEnemyPathwayChance = 0.05; // Reset rare enemy chance
             isPlayerDiving = true;
             gameStats.totalDives++;
             divePrepArea.style.display = 'none';
             diveMinigameArea.style.display = 'flex';
+            
+            // Reset used status for habitats at the start of a new dive
+            placedHabitats.forEach(h => h.usedThisDive = false);
             
             MAX_PLAYER_HEALTH = hasGodHealth ? 500 : DEFAULT_MAX_PLAYER_HEALTH;
             playerHealth = MAX_PLAYER_HEALTH;
@@ -2653,7 +2792,7 @@
             if (netCheckbox && netCheckbox.checked) { diveTools.push('net'); }
 
             diveInventory = [];
-            generateMinigameMap();
+            generateMinigameMap(); // This regenerates landmarks every dive
             renderMinigame();
             document.addEventListener('keydown', handlePlayerMovement);
         }
@@ -2680,19 +2819,28 @@
                 if (!hasInfiniteMoves) diveMoves--;
 
                 const currentTile = minigameMap[newY][newX];
-                if (currentTile.type === 'path' && !noEnemies && Math.random() < 0.075) {
-                    const distance = Math.abs(playerPosition.x - Math.floor(MAP_SIZE / 2)) + Math.abs(playerPosition.y - Math.floor(MAP_SIZE / 2));
-                    const distanceModifier = Math.floor(distance / 2) * 0.0005;
-                    let whaleFishChance = 0.02 + distanceModifier;
-                    let spiderChance = 0.02 + distanceModifier;
-                    const spawnRoll = Math.random();
-                    if (spawnRoll < whaleFishChance) startCombat(enemies.whalefish);
-                    else if (spawnRoll < whaleFishChance + spiderChance) startCombat(enemies.spider);
-                    else {
-                        const normalEnemies = Object.keys(enemies).filter(key => !['whalefish', 'spider'].includes(key));
-                        startCombat(enemies[normalEnemies[Math.floor(Math.random() * normalEnemies.length)]]);
+                const habitatAtLocation = placedHabitats.find(h => h.x === newX && h.y === newY);
+
+                if (habitatAtLocation && !habitatAtLocation.usedThisDive) {
+                    useHabitat(habitatAtLocation);
+                }
+                else if (currentTile.type === 'path' && !noEnemies) {
+                    // Check for rare enemies first
+                    if (Math.random() < rareEnemyPathwayChance) {
+                        const rareEnemies = [enemies.whalefish, enemies.spider];
+                        startCombat(rareEnemies[Math.floor(Math.random() * rareEnemies.length)]);
+                        rareEnemyPathwayChance = 0.05; // Reset chance
+                        return; // Stop further checks
+                    } 
+                    // Then check for common enemies
+                    else if (Math.random() < 0.15) { // 15% chance for common
+                        const commonEnemies = Object.keys(enemies).filter(key => !['whalefish', 'spider'].includes(key));
+                        startCombat(enemies[commonEnemies[Math.floor(Math.random() * commonEnemies.length)]]);
+                        return; // Stop further checks
                     }
-                    return;
+                    // If no enemy spawned, increase rare chance
+                    rareEnemyPathwayChance += 0.0045;
+
                 } else if (currentTile.type === 'landmark') {
                     openLandmark(currentTile.details);
                     minigameMap[newY][newX] = { type: 'path' };
@@ -2713,6 +2861,7 @@
             divePrepArea.style.display = 'flex';
             startCooldown(beginDiveButton, diveCooldownBar, diveCooldownDuration);
             MAX_PLAYER_HEALTH = DEFAULT_MAX_PLAYER_HEALTH; // Reset health
+            rareEnemyPathwayChance = 0.05; // Reset rare enemy chance
             
             bandageCount += diveBandages; // Return unused bandages
             bandageCountSpan.textContent = bandageCount;
@@ -2737,6 +2886,9 @@
                 }
             } else {
                 addNarrativeLine("You passed out... You were lucky to float back, but lost everything from the dive.");
+                 if (!hasFoundRepairShip) { // Still unlock recipes on first dive failure
+                    showRepairShipRecipes();
+                }
             }
             diveInventory = [];
             diveTools = [];
@@ -2748,6 +2900,19 @@
         
         // --- Landmark & Combat Logic ---
         function openLandmark(details, secondPhase = false) {
+             if (details.name === 'Sunken Repair Ship' && !hasFoundRepairShip) {
+                showRepairShipRecipes();
+                hasFoundRepairShip = true;
+                const modalFn = () => {
+                    const popup = document.createElement('div');
+                    popup.classList.add('modal');
+                    popup.style.display = 'flex';
+                    popup.innerHTML = `<div class="modal-content"><p>You've discovered new crafting recipes!</p><button class="modal-button">OK</button></div>`;
+                    document.body.appendChild(popup);
+                    popup.querySelector('button').addEventListener('click', () => popup.remove(), { once: true });
+                };
+                showModal(modalFn);
+            }
             let tempDiveInv = JSON.parse(JSON.stringify(diveInventory)); // Create a temporary copy for this interaction
             
             const renderLandmark = () => {
@@ -2786,10 +2951,11 @@
                 if (!secondPhase) {
                     document.getElementById('explore-further').addEventListener('click', () => {
                         diveInventory = tempDiveInv; // Save current choices before exploring
-                        if (Math.random() < 0.3) {
+                        if (Math.random() < 0.18) { // 18% chance for rare enemy
                             landmarkModalContainer.style.display = 'none';
-                            const enemyKeys = Object.keys(enemies);
-                            startCombat(enemies[enemyKeys[Math.floor(Math.random() * enemyKeys.length)]], true); // true for no loot
+                            const rareEnemies = [enemies.whalefish, enemies.spider];
+                            startCombat(rareEnemies[Math.floor(Math.random() * rareEnemies.length)], true);
+                            rareEnemyPathwayChance = 0.05; // Reset chance
                         } else {
                             openLandmark(details, true);
                         }
@@ -3066,12 +3232,13 @@
             };
 
             if (validCodes[code]) {
-                isAdminMode = true;
-                adminControlsArea.style.display = 'flex';
-                const toggle = document.getElementById(validCodes[code]);
-                toggle.checked = !toggle.checked;
-                toggle.dispatchEvent(new Event('change')); // Manually trigger change event
-                adminStatus.textContent = `Toggled: ${toggle.previousElementSibling.textContent}`;
+                const commandId = validCodes[code];
+                const toggleContainer = document.getElementById(`${commandId}-container`);
+                if (toggleContainer) {
+                    toggleContainer.style.display = 'flex';
+                    unlockedAdminCommands.add(commandId);
+                    adminStatus.textContent = `Command unlocked: ${toggleContainer.querySelector('span').textContent}`;
+                }
             } else {
                 adminStatus.textContent = 'Incorrect Code.';
             }
@@ -3080,15 +3247,17 @@
         
         function prepareSaveData() {
             const gameState = {
-                resources: { wood: woodCount, stone: stoneCount, fabric: fabricCount, rope: ropeCount, scrap: metallicScrapCount, bandage: bandageCount, pearl: pearlCount, ammo: harpoonAmmoCount },
+                resources: { wood: woodCount, stone: stoneCount, fabric: fabricCount, rope: ropeCount, scrap: metallicScrapCount, bandage: bandageCount, pearl: pearlCount, ammo: harpoonAmmoCount, screws: screwsCount },
                 purity: { tungsten: tungstenCount, kevlar: kevlarCount, rStone: reinforcedStoneCount, rWood: reinforcedWoodCount },
-                flags: { search: searchCount, isFree, axeheadFound, hasWoodpile: hasUnlitWoodpile, hasLiquid: hasFlammableLiquid, hasMatch, isSection2, fireHint: hasShownFireHint },
-                crafted: { gear: hasDivingGear, spear: hasSpear, tank: hasBetterAirTank, gun: hasHarpoonGun, net: hasFishingNet },
+                flags: { search: searchCount, isFree, axeheadFound, hasWoodpile: hasUnlitWoodpile, hasLiquid: hasFlammableLiquid, hasMatch, isSection2, isSection3, fireHint: hasShownFireHint, foundRepairShip: hasFoundRepairShip },
+                crafted: { gear: hasDivingGear, spear: hasSpear, tank: hasBetterAirTank, gun: hasHarpoonGun, net: hasFishingNet, diveBag: hasDiveBag, furnace: hasFurnace },
                 workers: { total: totalWorkers, idle: idleWorkers, wood: woodGatherers, swim: swimmers, shelters: sheltersBuilt },
                 achievements: Array.from(unlockedAchievements),
-                admin: { mode: isAdminMode, free: isFreeCrafting, fast: isCooldownHacked, infMoves: hasInfiniteMoves, godHealth: hasGodHealth, noEnemies: noEnemies },
+                admin: { mode: isAdminMode, free: isFreeCrafting, fast: isCooldownHacked, infMoves: hasInfiniteMoves, godHealth: hasGodHealth, noEnemies: noEnemies, unlocked: Array.from(unlockedAdminCommands) },
                 paths: safePaths,
-                stats: gameStats
+                habitats: { built: habitatsBuilt, placed: placedHabitats },
+                stats: gameStats,
+                time: gameTime
             };
             exportTextarea.value = btoa(JSON.stringify(gameState));
         }
@@ -3104,15 +3273,22 @@
             try {
                 const savedState = JSON.parse(atob(importTextarea.value));
                 
-                woodCount = savedState.resources.wood || 0; stoneCount = savedState.resources.stone || 0; fabricCount = savedState.resources.fabric || 0; ropeCount = savedState.resources.rope || 0; metallicScrapCount = savedState.resources.scrap || 0; bandageCount = savedState.resources.bandage || 0; pearlCount = savedState.resources.pearl || 0; harpoonAmmoCount = savedState.resources.ammo || 0;
+                woodCount = savedState.resources.wood || 0; stoneCount = savedState.resources.stone || 0; fabricCount = savedState.resources.fabric || 0; ropeCount = savedState.resources.rope || 0; metallicScrapCount = savedState.resources.scrap || 0; bandageCount = savedState.resources.bandage || 0; pearlCount = savedState.resources.pearl || 0; harpoonAmmoCount = savedState.resources.ammo || 0; screwsCount = savedState.resources.screws || 0;
                 tungstenCount = savedState.purity.tungsten || 0; kevlarCount = savedState.purity.kevlar || 0; reinforcedStoneCount = savedState.purity.rStone || 0; reinforcedWoodCount = savedState.purity.rWood || 0;
-                searchCount = savedState.flags.search || 0; isFree = savedState.flags.isFree || false; axeheadFound = savedState.flags.axeheadFound || false; hasUnlitWoodpile = savedState.flags.hasWoodpile || false; hasFlammableLiquid = savedState.flags.hasLiquid || false; hasMatch = savedState.flags.hasMatch || false; isSection2 = savedState.flags.isSection2 || false; hasShownFireHint = savedState.flags.fireHint || false;
-                hasDivingGear = savedState.crafted.gear || false; hasSpear = savedState.crafted.spear || false; hasBetterAirTank = savedState.crafted.tank || false; hasHarpoonGun = savedState.crafted.gun || false; hasFishingNet = savedState.crafted.net || false;
+                searchCount = savedState.flags.search || 0; isFree = savedState.flags.isFree || false; axeheadFound = savedState.flags.axeheadFound || false; hasUnlitWoodpile = savedState.flags.hasWoodpile || false; hasFlammableLiquid = savedState.flags.hasLiquid || false; hasMatch = savedState.flags.hasMatch || false; isSection2 = savedState.flags.isSection2 || false; isSection3 = savedState.flags.isSection3 || false; hasShownFireHint = savedState.flags.fireHint || false; hasFoundRepairShip = savedState.flags.foundRepairShip || false;
+                hasDivingGear = savedState.crafted.gear || false; hasSpear = savedState.crafted.spear || false; hasBetterAirTank = savedState.crafted.tank || false; hasHarpoonGun = savedState.crafted.gun || false; hasFishingNet = savedState.crafted.net || false; hasDiveBag = savedState.crafted.diveBag || false; hasFurnace = savedState.crafted.furnace || false;
                 totalWorkers = savedState.workers.total || 0; woodGatherers = savedState.workers.wood || 0; swimmers = savedState.workers.swim || 0; sheltersBuilt = savedState.workers.shelters || 0;
                 unlockedAchievements = new Set(savedState.achievements || []);
-                isAdminMode = savedState.admin.mode || false; isFreeCrafting = savedState.admin.free || false; isCooldownHacked = savedState.admin.fast || false; hasInfiniteMoves = savedState.admin.infMoves || false; hasGodHealth = savedState.admin.godHealth || false; noEnemies = savedState.admin.noEnemies || false;
+                if (savedState.admin) {
+                    isAdminMode = savedState.admin.mode || false; isFreeCrafting = savedState.admin.free || false; isCooldownHacked = savedState.admin.fast || false; hasInfiniteMoves = savedState.admin.infMoves || false; hasGodHealth = savedState.admin.godHealth || false; noEnemies = savedState.admin.noEnemies || false;
+                    unlockedAdminCommands = new Set(savedState.admin.unlocked || []);
+                }
                 safePaths = savedState.paths || [];
+                habitatsBuilt = savedState.habitats.built || 0;
+                placedHabitats = savedState.habitats.placed || [];
                 gameStats = savedState.stats || { totalWoodCollected: 0, enemiesSlain: {} };
+                gameTime = savedState.time || 0;
+
 
                 updateUIFromLoad();
                 addNarrativeLine("Game loaded successfully!");
@@ -3134,6 +3310,9 @@
             airTankItem.style.display = hasBetterAirTank ? 'flex' : 'none';
             harpoonGunItem.style.display = hasHarpoonGun ? 'flex' : 'none';
             fishingNetItem.style.display = hasFishingNet ? 'flex' : 'none';
+            diveBagItem.style.display = hasDiveBag ? 'flex' : 'none';
+            furnaceItem.style.display = hasFurnace ? 'flex' : 'none';
+
 
             if (axeheadFound) navigationTabs.style.display = 'flex';
             swimButton.style.display = hasMatch ? 'block' : 'none';
@@ -3141,14 +3320,16 @@
             diveTab.style.display = hasDivingGear ? 'block' : 'none';
             updateWorkerStats();
             
-            if (isAdminMode) {
-                adminControlsArea.style.display = 'flex';
-                freeCraftingToggle.checked = isFreeCrafting;
-                fastCooldownsToggle.checked = isCooldownHacked;
-                infiniteMovesToggle.checked = hasInfiniteMoves;
-                godHealthToggle.checked = hasGodHealth;
-                noEnemiesToggle.checked = noEnemies;
-            }
+            // Admin toggles from save
+            freeCraftingToggle.checked = isFreeCrafting;
+            fastCooldownsToggle.checked = isCooldownHacked;
+            infiniteMovesToggle.checked = hasInfiniteMoves;
+            godHealthToggle.checked = hasGodHealth;
+            noEnemiesToggle.checked = noEnemies;
+            unlockedAdminCommands.forEach(id => {
+                const container = document.getElementById(`${id}-container`);
+                if (container) container.style.display = 'flex';
+            });
             
             // Re-add crafting recipes
             document.getElementById('crafting-recipes-container').innerHTML = `<div class="crafting-recipe" id="woodpile-recipe"><p>Unlit Woodpile</p><p>Requires: 5 Wood</p><button id="craft-woodpile-button" class="game-button">Craft</button></div>`;
@@ -3157,11 +3338,22 @@
             if (isSection2) {
                 updateShelterRecipe();
                 if (!hasDivingGear) addCraftingRecipe(`Simple Diving Gear`, `5 Fabric, 2 Stone, 1 Metallic, 1 Rope`, `craft-diving-gear`, `diving-gear-recipe`, craftDivingGear);
+                if (!hasDiveBag) addCraftingRecipe('Dive Bag', '10 Fabric, 5 Rope', 'craft-dive-bag', 'dive-bag-recipe', craftDiveBag, 'crafting-recipes-container', 'Increases dive inventory by 4 slots.');
             }
             if (hasDivingGear) {
                 addCraftingRecipe('Spear', '2 Wood, 1 Stone, 1 Metallic, 1 Rope', 'craft-spear', 'spear-recipe', craftSpear);
                 addCraftingRecipe('Better Air Tank', '5 Stone, 1 Rope, 2 Fabric', 'craft-air-tank', 'air-tank-recipe', craftBetterAirTank);
                 addCraftingRecipe('Bandage', '2 Fabric, 1 Wood', 'craft-bandage', 'bandage-recipe', craftBandage);
+            }
+             if (hasFoundRepairShip) {
+                showRepairShipRecipes();
+                if (hasFurnace) {
+                     document.getElementById('furnace-recipe').style.display = 'none';
+                     addCraftingRecipe('Screws', '1 Metallic Scrap, 1 Stone', 'craft-screws', 'screws-recipe', craftScrews, 'crafting-recipes-container', 'Essential for advanced construction.');
+                }
+                if (habitatsBuilt >= MAX_HABITATS) {
+                    document.getElementById('habitat-recipe').style.display = 'none';
+                }
             }
             if (unlockedAchievements.has('deep_diver')) { // Check if dive gear was ever crafted
                  addCraftingRecipe('Fishing Net', '20 Rope', 'craft-fishing-net', 'fishing-net-recipe', craftFishingNet);
@@ -3174,8 +3366,8 @@
         }
 
         function updateAllResourceCounts() {
-            woodCountSpan.textContent = woodCount; stoneCountSpan.textContent = stoneCount; fabricCountSpan.textContent = fabricCount; ropeCountSpan.textContent = ropeCount; metallicScrapCountSpan.textContent = metallicScrapCount; bandageCountSpan.textContent = bandageCount; pearlCountSpan.textContent = pearlCount; harpoonAmmoCountSpan.textContent = harpoonAmmoCount; tungstenCountSpan.textContent = tungstenCount; kevlarCountSpan.textContent = kevlarCount; reinforcedStoneCountSpan.textContent = reinforcedStoneCount; reinforcedWoodCountSpan.textContent = reinforcedWoodCount;
-            woodItem.style.display = woodCount > 0 ? 'flex' : 'none'; stoneItem.style.display = stoneCount > 0 ? 'flex' : 'none'; fabricItem.style.display = fabricCount > 0 ? 'flex' : 'none'; ropeItem.style.display = ropeCount > 0 ? 'flex' : 'none'; metallicScrapItem.style.display = metallicScrapCount > 0 ? 'flex' : 'none'; bandageItem.style.display = bandageCount > 0 ? 'flex' : 'none'; pearlItem.style.display = pearlCount > 0 ? 'flex' : 'none'; harpoonAmmoItem.style.display = harpoonAmmoCount > 0 ? 'flex' : 'none'; tungstenItem.style.display = tungstenCount > 0 ? 'flex' : 'none'; kevlarItem.style.display = kevlarCount > 0 ? 'flex' : 'none'; reinforcedStoneItem.style.display = reinforcedStoneCount > 0 ? 'flex' : 'none'; reinforcedWoodItem.style.display = reinforcedWoodCount > 0 ? 'flex' : 'none';
+            woodCountSpan.textContent = woodCount; stoneCountSpan.textContent = stoneCount; fabricCountSpan.textContent = fabricCount; ropeCountSpan.textContent = ropeCount; metallicScrapCountSpan.textContent = metallicScrapCount; bandageCountSpan.textContent = bandageCount; pearlCountSpan.textContent = pearlCount; harpoonAmmoCountSpan.textContent = harpoonAmmoCount; tungstenCountSpan.textContent = tungstenCount; kevlarCountSpan.textContent = kevlarCount; reinforcedStoneCountSpan.textContent = reinforcedStoneCount; reinforcedWoodCountSpan.textContent = reinforcedWoodCount; screwsCountSpan.textContent = screwsCount;
+            woodItem.style.display = woodCount > 0 ? 'flex' : 'none'; stoneItem.style.display = stoneCount > 0 ? 'flex' : 'none'; fabricItem.style.display = fabricCount > 0 ? 'flex' : 'none'; ropeItem.style.display = ropeCount > 0 ? 'flex' : 'none'; metallicScrapItem.style.display = metallicScrapCount > 0 ? 'flex' : 'none'; bandageItem.style.display = bandageCount > 0 ? 'flex' : 'none'; pearlItem.style.display = pearlCount > 0 ? 'flex' : 'none'; harpoonAmmoItem.style.display = harpoonAmmoCount > 0 ? 'flex' : 'none'; tungstenItem.style.display = tungstenCount > 0 ? 'flex' : 'none'; kevlarItem.style.display = kevlarCount > 0 ? 'flex' : 'none'; reinforcedStoneItem.style.display = reinforcedStoneCount > 0 ? 'flex' : 'none'; reinforcedWoodItem.style.display = reinforcedWoodCount > 0 ? 'flex' : 'none'; screwsItem.style.display = screwsCount > 0 ? 'flex' : 'none';
         }
 
         function updateStatisticsScreen() {
@@ -3204,6 +3396,60 @@
                 unlockAchievement('afk_lol');
             }, AFK_TIMEOUT);
         }
+        
+        // --- Timer Logic ---
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isGamePaused) {
+                    gameTime++;
+                    updateTimerDisplay();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const hours = Math.floor(gameTime / 3600).toString().padStart(2, '0');
+            const minutes = Math.floor((gameTime % 3600) / 60).toString().padStart(2, '0');
+            const seconds = (gameTime % 60).toString().padStart(2, '0');
+            speedrunTimer.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        
+         // --- Habitat Logic ---
+        function buildHabitat() {
+            if (habitatsBuilt > placedHabitats.length) {
+                placedHabitats.push({ x: playerPosition.x, y: playerPosition.y, usedThisDive: false });
+                addNarrativeLine("You've placed an Underwater Habitat.");
+                if (!isSection3) {
+                    isSection3 = true;
+                    unlockAchievement('deep_sea_dweller');
+                }
+                renderMinigame();
+            }
+        }
+        
+        function useHabitat(habitat) {
+            habitat.usedThisDive = true;
+            let airRestored = 20;
+            if(hasBetterAirTank) airRestored = 50;
+            diveMoves += airRestored;
+            
+            const healedAmount = Math.min(10, MAX_PLAYER_HEALTH - playerHealth);
+            playerHealth += healedAmount;
+
+            addNarrativeLine(`Habitat restored ${airRestored} moves and healed ${healedAmount} HP.`);
+            renderMinigame();
+        }
+        
+        function showRepairShipRecipes() {
+            if (!document.getElementById('furnace-recipe')) {
+                addCraftingRecipe('Furnace', '10 Metallic Scrap, 2 Tungsten, 50 Wood', 'craft-furnace', 'furnace-recipe', craftFurnace, 'crafting-recipes-container', 'Allows for smelting and creating advanced components.');
+            }
+            if (!document.getElementById('habitat-recipe')) {
+                 addCraftingRecipe('Underwater Habitat', '3 Tungsten, 45 Metallic Scrap, 100 Screws', 'craft-habitat', 'habitat-recipe', craftUnderwaterHabitat, 'crafting-recipes-container', 'A small, safe outpost for deep-sea exploration.');
+            }
+        }
+
 
         // --- Main Game Event Listeners ---
         mainButton.addEventListener('click', progressGame);
@@ -3243,6 +3489,7 @@
         swimButton.addEventListener('click', swim);
         beginDiveButton.addEventListener('click', beginDive);
         useBandageButton.addEventListener('click', useBandage);
+        buildHabitatButton.addEventListener('click', buildHabitat);
         fistAttackButton.addEventListener('click', () => playerAttack('fist'));
         spearAttackButton.addEventListener('click', () => playerAttack('spear'));
         tangleButton.addEventListener('click', playerTangle);
@@ -3273,6 +3520,7 @@
         bouncingText.querySelectorAll('span').forEach((span, index) => { span.style.animationDelay = `${index * 0.05}s`; });
         document.body.addEventListener('click', () => { if (!isMusicPlaying && backgroundMusic.paused) toggleMusic(); }, { once: true });
         resetAfkTimer();
+        startTimer();
 
     </script>
 </body>
